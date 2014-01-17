@@ -1,0 +1,4 @@
+-I include
+-I tools/clang/include
+-I tools/lldb/include
+-I projects/compiler-rt/include
