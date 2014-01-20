@@ -490,8 +490,6 @@ static int readPrefixes(struct InternalInstruction* insn) {
                         | (bFromEVEX2of4(insn->vectorExtensionPrefix[1]) << 0);
       }
 
-      hasOpSize = (VEX_PREFIX_66 == ppFromEVEX3of4(insn->vectorExtensionPrefix[2]));
-
       dbgprintf(insn, "Found EVEX prefix 0x%hhx 0x%hhx 0x%hhx 0x%hhx",
               insn->vectorExtensionPrefix[0], insn->vectorExtensionPrefix[1],
               insn->vectorExtensionPrefix[2], insn->vectorExtensionPrefix[3]);
@@ -527,15 +525,6 @@ static int readPrefixes(struct InternalInstruction* insn) {
                         | (rFromVEX2of3(insn->vectorExtensionPrefix[1]) << 2)
                         | (xFromVEX2of3(insn->vectorExtensionPrefix[1]) << 1)
                         | (bFromVEX2of3(insn->vectorExtensionPrefix[1]) << 0);
-      }
-
-      switch (ppFromVEX3of3(insn->vectorExtensionPrefix[2]))
-      {
-      default:
-        break;
-      case VEX_PREFIX_66:
-        hasOpSize = TRUE;
-        break;
       }
 
       dbgprintf(insn, "Found VEX prefix 0x%hhx 0x%hhx 0x%hhx",
@@ -982,7 +971,7 @@ static int getID(struct InternalInstruction* insn, const void *miiArg) {
     }
   }
   else {
-    if (isPrefixAtLocation(insn, 0x66, insn->necessaryPrefixLocation))
+    if (insn->mode != MODE_16BIT && isPrefixAtLocation(insn, 0x66, insn->necessaryPrefixLocation))
       attrMask |= ATTR_OPSIZE;
     else if (isPrefixAtLocation(insn, 0x67, insn->necessaryPrefixLocation))
       attrMask |= ATTR_ADSIZE;
@@ -998,9 +987,29 @@ static int getID(struct InternalInstruction* insn, const void *miiArg) {
   if (getIDWithAttrMask(&instructionID, insn, attrMask))
     return -1;
 
+  /*
+   * JCXZ/JECXZ need special handling for 16-bit mode because the meaning
+   * of the AdSize prefix is inverted w.r.t. 32-bit mode.
+   */
+  if (insn->mode == MODE_16BIT && insn->opcode == 0xE3) {
+    const struct InstructionSpecifier *spec;
+    spec = specifierForUID(instructionID);
+
+    /*
+     * Check for Ii8PCRel instructions. We could alternatively do a
+     * string-compare on the names, but this is probably cheaper.
+     */
+    if (x86OperandSets[spec->operands][0].type == TYPE_REL8) {
+      attrMask ^= ATTR_ADSIZE;
+      if (getIDWithAttrMask(&instructionID, insn, attrMask))
+        return -1;
+    }
+  }
+
   /* The following clauses compensate for limitations of the tables. */
 
-  if (insn->prefixPresent[0x66] && !(attrMask & ATTR_OPSIZE)) {
+  if ((insn->mode == MODE_16BIT || insn->prefixPresent[0x66]) &&
+      !(attrMask & ATTR_OPSIZE)) {
     /*
      * The instruction tables make no distinction between instructions that
      * allow OpSize anywhere (i.e., 16-bit operations) and that need it in a
@@ -1032,7 +1041,8 @@ static int getID(struct InternalInstruction* insn, const void *miiArg) {
     specWithOpSizeName =
       x86DisassemblerGetInstrName(instructionIDWithOpsize, miiArg);
 
-    if (is16BitEquivalent(specName, specWithOpSizeName)) {
+    if (is16BitEquivalent(specName, specWithOpSizeName) &&
+        (insn->mode == MODE_16BIT) ^ insn->prefixPresent[0x66]) {
       insn->instructionID = instructionIDWithOpsize;
       insn->spec = specifierForUID(instructionIDWithOpsize);
     } else {

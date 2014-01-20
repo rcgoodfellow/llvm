@@ -813,29 +813,41 @@ def FCMLTvvv_2S  : NeonI_compare_aliases<"fcmlt", ".2s",  FCMGTvvv_2S,  VPR64>;
 def FCMLTvvv_4S  : NeonI_compare_aliases<"fcmlt", ".4s",  FCMGTvvv_4S,  VPR128>;
 def FCMLTvvv_2D  : NeonI_compare_aliases<"fcmlt", ".2d",  FCMGTvvv_2D,  VPR128>;
 
+def fpzero_izero_asmoperand : AsmOperandClass {
+  let Name = "FPZeroIZero";
+  let ParserMethod = "ParseFPImm0AndImm0Operand";
+  let DiagnosticType = "FPZero";
+}
+
+def fpzz32 : Operand<f32>,
+             ComplexPattern<f32, 1, "SelectFPZeroOperand", [fpimm]> {
+  let ParserMatchClass = fpzero_izero_asmoperand;
+  let PrintMethod = "printFPZeroOperand";
+  let DecoderMethod = "DecodeFPZeroOperand";
+}
 
 multiclass NeonI_fpcmpz_sizes<bit u, bit size, bits<5> opcode,
                               string asmop, CondCode CC>
 {
   def _2S : NeonI_2VMisc<0b0, u, {size, 0b0}, opcode,
-            (outs VPR64:$Rd), (ins VPR64:$Rn, fpz32:$FPImm),
+            (outs VPR64:$Rd), (ins VPR64:$Rn, fpzz32:$FPImm),
             asmop # "\t$Rd.2s, $Rn.2s, $FPImm",
             [(set (v2i32 VPR64:$Rd),
-               (v2i32 (Neon_cmpz (v2f32 VPR64:$Rn), (f32 fpz32:$FPImm), CC)))],
+               (v2i32 (Neon_cmpz (v2f32 VPR64:$Rn), (f32 fpzz32:$FPImm), CC)))],
             NoItinerary>;
 
   def _4S : NeonI_2VMisc<0b1, u, {size, 0b0}, opcode,
-            (outs VPR128:$Rd), (ins VPR128:$Rn, fpz32:$FPImm),
+            (outs VPR128:$Rd), (ins VPR128:$Rn, fpzz32:$FPImm),
             asmop # "\t$Rd.4s, $Rn.4s, $FPImm",
             [(set (v4i32 VPR128:$Rd),
-               (v4i32 (Neon_cmpz (v4f32 VPR128:$Rn), (f32 fpz32:$FPImm), CC)))],
+               (v4i32 (Neon_cmpz (v4f32 VPR128:$Rn), (f32 fpzz32:$FPImm), CC)))],
             NoItinerary>;
 
   def _2D : NeonI_2VMisc<0b1, u, {size, 0b1}, opcode,
-            (outs VPR128:$Rd), (ins VPR128:$Rn, fpz32:$FPImm),
+            (outs VPR128:$Rd), (ins VPR128:$Rn, fpzz32:$FPImm),
             asmop # "\t$Rd.2d, $Rn.2d, $FPImm",
             [(set (v2i64 VPR128:$Rd),
-               (v2i64 (Neon_cmpz (v2f64 VPR128:$Rn), (f32 fpz32:$FPImm), CC)))],
+               (v2i64 (Neon_cmpz (v2f64 VPR128:$Rn), (f32 fpzz32:$FPImm), CC)))],
             NoItinerary>;
 }
 
@@ -4512,12 +4524,12 @@ class NeonI_Scalar2SameMisc_cmpz_D_size<bit u, bits<5> opcode, string asmop>
 multiclass NeonI_Scalar2SameMisc_cmpz_SD_size<bit u, bits<5> opcode,
                                               string asmop> {
   def ssi : NeonI_Scalar2SameMisc<u, 0b10, opcode,
-                           (outs FPR32:$Rd), (ins FPR32:$Rn, fpz32:$FPImm),
+                           (outs FPR32:$Rd), (ins FPR32:$Rn, fpzz32:$FPImm),
                            !strconcat(asmop, "\t$Rd, $Rn, $FPImm"),
                            [],
                            NoItinerary>;
   def ddi : NeonI_Scalar2SameMisc<u, 0b11, opcode,
-                           (outs FPR64:$Rd), (ins FPR64:$Rn, fpz32:$FPImm),
+                           (outs FPR64:$Rd), (ins FPR64:$Rn, fpzz32:$FPImm),
                            !strconcat(asmop, "\t$Rd, $Rn, $FPImm"),
                            [],
                            NoItinerary>;
@@ -4539,12 +4551,12 @@ multiclass Neon_Scalar2SameMisc_cmpz_SD_size_patterns<SDPatternOperator opnode,
                                                       CondCode CC,
                                                       Instruction INSTS,
                                                       Instruction INSTD> {
-  def : Pat<(v1i32 (opnode (f32 FPR32:$Rn), (f32 fpz32:$FPImm))),
-            (INSTS FPR32:$Rn, fpz32:$FPImm)>;
-  def : Pat<(v1i64 (opnode (f64 FPR64:$Rn), (f32 fpz32:$FPImm))),
-            (INSTD FPR64:$Rn, fpz32:$FPImm)>;
-  def : Pat<(v1i64 (Neon_cmpz (v1f64 FPR64:$Rn), (f32 fpz32:$FPImm), CC)),
-            (INSTD FPR64:$Rn, fpz32:$FPImm)>;
+  def : Pat<(v1i32 (opnode (f32 FPR32:$Rn), (f32 fpzz32:$FPImm))),
+            (INSTS FPR32:$Rn, fpzz32:$FPImm)>;
+  def : Pat<(v1i64 (opnode (f64 FPR64:$Rn), (f32 fpzz32:$FPImm))),
+            (INSTD FPR64:$Rn, fpzz32:$FPImm)>;
+  def : Pat<(v1i64 (Neon_cmpz (v1f64 FPR64:$Rn), (f32 fpzz32:$FPImm), CC)),
+            (INSTD FPR64:$Rn, fpzz32:$FPImm)>;
 }
 
 multiclass Neon_Scalar2SameMisc_D_size_patterns<SDPatternOperator opnode,
@@ -6888,15 +6900,10 @@ def : Pat<(v4i32 (scalar_to_vector GPR32:$Rn)),
 def : Pat<(v2i64 (scalar_to_vector GPR64:$Rn)),
           (INSdx (v2i64 (IMPLICIT_DEF)), $Rn, (i64 0))>;
 
-def : Pat<(v2i32 (scalar_to_vector GPR32:$Rn)),
-          (v2i32 (EXTRACT_SUBREG (v16i8
-            (INSsw (v4i32 (IMPLICIT_DEF)), $Rn, (i64 0))),
-            sub_64))>;
-
-def : Pat<(v2i32 (scalar_to_vector GPR32:$Rn)),
-          (v2i32 (EXTRACT_SUBREG (v16i8
-            (INSsw (v4i32 (IMPLICIT_DEF)), $Rn, (i64 0))),
-            sub_64))>;
+def : Pat<(v2f32 (scalar_to_vector (f32 FPR32:$Rn))),
+          (SUBREG_TO_REG (i64 0), FPR32:$Rn, sub_32)>;
+def : Pat<(v4f32 (scalar_to_vector (f32 FPR32:$Rn))),
+          (SUBREG_TO_REG (i64 0), FPR32:$Rn, sub_32)>;
 
 def : Pat<(v1f64 (scalar_to_vector (f64 FPR64:$Rn))),
           (v1f64 FPR64:$Rn)>;
@@ -7062,6 +7069,11 @@ defm : Concat_Vector_Pattern<v4i32, v2i32>;
 defm : Concat_Vector_Pattern<v2i64, v1i64>;
 defm : Concat_Vector_Pattern<v4f32, v2f32>;
 defm : Concat_Vector_Pattern<v2f64, v1f64>;
+
+def : Pat<(v2i32 (concat_vectors (v1i32 FPR32:$Rn), (v1i32 FPR32:$Rn))),
+          (DUPELT2s (v4i32 (SUBREG_TO_REG(i64 0), $Rn, sub_32)), 0)>;
+def : Pat<(v2i32 (concat_vectors undef, (v1i32 FPR32:$Rn))),
+          (DUPELT2s (v4i32 (SUBREG_TO_REG(i64 0), $Rn, sub_32)), 0)>;
 
 //patterns for EXTRACT_SUBVECTOR
 def : Pat<(v8i8 (extract_subvector (v16i8 VPR128:$Rn), (i64 0))),
@@ -8851,6 +8863,12 @@ def : Pat<(v2i64 (sra (v2i64 VPR128:$Rn), (v2i64 VPR128:$Rm))),
 //
 // Patterns for handling half-precision values
 //
+
+// Convert between f16 value and f32 value
+def : Pat<(f32 (f16_to_f32 (i32 GPR32:$Rn))),
+          (FCVTsh (EXTRACT_SUBREG (FMOVsw $Rn), sub_16))>;
+def : Pat<(i32 (f32_to_f16 (f32 FPR32:$Rn))),
+          (FMOVws (SUBREG_TO_REG (i64 0), (f16 (FCVThs $Rn)), sub_16))>;
 
 // Convert f16 value coming in as i16 value to f32
 def : Pat<(f32 (f16_to_f32 (i32 (and (i32 GPR32:$Rn), 65535)))),
