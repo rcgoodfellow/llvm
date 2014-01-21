@@ -85,12 +85,15 @@ public:
   virtual void emitFnEnd() = 0;
   virtual void emitCantUnwind() = 0;
   virtual void emitPersonality(const MCSymbol *Personality) = 0;
+  virtual void emitPersonalityIndex(unsigned Index) = 0;
   virtual void emitHandlerData() = 0;
   virtual void emitSetFP(unsigned FpReg, unsigned SpReg,
                          int64_t Offset = 0) = 0;
   virtual void emitPad(int64_t Offset) = 0;
   virtual void emitRegSave(const SmallVectorImpl<unsigned> &RegList,
                            bool isVector) = 0;
+  virtual void emitUnwindRaw(int64_t StackOffset,
+                             const SmallVectorImpl<uint8_t> &Opcodes) = 0;
 
   virtual void switchVendor(StringRef Vendor) = 0;
   virtual void emitAttribute(unsigned Attribute, unsigned Value) = 0;
